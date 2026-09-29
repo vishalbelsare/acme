@@ -38,7 +38,6 @@ from acme.jax import utils
 from acme.jax import variable_utils
 from acme.utils import counting
 from acme.utils import loggers
-import chex
 import jax
 import optax
 import reverb
@@ -94,7 +93,7 @@ class MPOBuilder(builders.ActorLearnerBuilder):
 
     del environment_spec  # This actor doesn't need the spec beyond the policy.
     variable_client = variable_utils.VariableClient(
-        client=variable_source,
+        client=variable_source,  # pyrefly: ignore[bad-argument-type]
         key=_POLICY_KEY,
         update_period=self.config.variable_update_period)
 
@@ -137,12 +136,12 @@ class MPOBuilder(builders.ActorLearnerBuilder):
     if self.config.use_cosine_lr_decay:
       learning_rate = optax.warmup_cosine_decay_schedule(
           init_value=0.,
-          peak_value=self.config.learning_rate,
+          peak_value=self.config.learning_rate,  # pyrefly: ignore[bad-argument-type]
           warmup_steps=self.config.cosine_lr_decay_warmup_steps,
-          decay_steps=self._max_learner_steps)
+          decay_steps=self._max_learner_steps)  # pyrefly: ignore[bad-argument-type]
 
     optimizer = optax.adamw(
-        learning_rate,
+        learning_rate,  # pyrefly: ignore[bad-argument-type]
         b1=self.config.adam_b1,
         b2=self.config.adam_b2,
         weight_decay=self.config.weight_decay)
@@ -162,8 +161,7 @@ class MPOBuilder(builders.ActorLearnerBuilder):
         'learner',
         steps_key=counter.get_steps_key() if counter else 'learner_steps')
 
-    with chex.fake_pmap_and_jit(not self.config.jit_learner,
-                                not self.config.jit_learner):
+    with jax.disable_jit(not self.config.jit_learner):
       learner = learning.MPOLearner(
           iterator=dataset,
           networks=networks,
@@ -188,8 +186,7 @@ class MPOBuilder(builders.ActorLearnerBuilder):
           model_rollout_length=self.config.model_rollout_length,
           sgd_steps_per_learner_step=self.sgd_steps_per_learner_step,
           optimizer=optimizer,
-          learning_rate=learning_rate,
-          dual_optimizer=optax.adam(self.config.dual_learning_rate),
+          dual_optimizer=optax.adam(self.config.dual_learning_rate),  # pyrefly: ignore[bad-argument-type]
           grad_norm_clip=self.config.grad_norm_clip,
           reward_clip=self.config.reward_clip,
           value_tx_pair=self.config.value_tx_pair,

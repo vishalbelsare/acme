@@ -145,7 +145,7 @@ def run_experiment(experiment: config.ExperimentConfig,
 
   if num_eval_episodes == 0:
     # No evaluation. Just run the training loop.
-    train_loop.run(num_steps=max_num_actor_steps)
+    train_loop.run(num_steps=max_num_actor_steps)  # pyrefly: ignore[bad-argument-type]
     return
 
   # Create the evaluation actor and loop.
@@ -174,7 +174,7 @@ def run_experiment(experiment: config.ExperimentConfig,
   while steps < max_num_actor_steps:
     eval_loop.run(num_episodes=num_eval_episodes)
     num_steps = min(eval_every, max_num_actor_steps - steps)
-    steps += train_loop.run(num_steps=num_steps)
+    steps += train_loop.run(num_steps=num_steps)  # pyrefly: ignore[bad-argument-type]
   eval_loop.run(num_episodes=num_eval_episodes)
 
   environment.close()
@@ -251,7 +251,7 @@ class _LearningActor(core.Actor):
         # Let iterator's prefetching thread get data from the table(s).
         time.sleep(0.001)
 
-  def update(self):
+  def update(self):  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
     if self._maybe_train():
       # Update the actor weights only when learner was updated.
       self._actor.update()

@@ -110,7 +110,7 @@ def episode_to_timestep_batch(
   batched_rewards = rlds.transformations.batch(
       rewards, size=return_horizon, shift=1, stride=1, drop_remainder=True)
   returns = batched_rewards.map(tf.math.reduce_sum)
-  output = tf.data.Dataset.zip((steps, returns)).map(_append_n_step_return)
+  output = tf.data.Dataset.zip((steps, returns)).map(_append_n_step_return)  # pyrefly: ignore[bad-argument-type]
 
   # Calculate total episode return for potential filtering, use total # of steps
   # to calculate return.
@@ -210,11 +210,11 @@ def get_normalization_stats(
   """
   # Set up normalization:
   example = next(iterator)
-  unbatched_single_example = jax.tree_map(lambda x: x[0, PREVIOUS, :], example)
+  unbatched_single_example = jax.tree.map(lambda x: x[0, PREVIOUS, :], example)
   mean_std = running_statistics.init_state(unbatched_single_example)
 
   for batch in itertools.islice(iterator, num_normalization_batches - 1):
-    example = jax.tree_map(lambda x: x[:, PREVIOUS, :], batch)
+    example = jax.tree.map(lambda x: x[:, PREVIOUS, :], batch)
     mean_std = running_statistics.update(mean_std, example)
 
   return mean_std

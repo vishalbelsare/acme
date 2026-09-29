@@ -56,7 +56,7 @@ class NormalizedGenericActor(actors.GenericActor[actor_core.State,
   """A GenericActor that uses observation normalization."""
 
   def __init__(self,
-               actor: actor_core.ActorCore[actor_core.State, actor_core.Extras],
+               actor: actor_core.ActorCore[actor_core.State, actor_core.Extras],  # pyrefly: ignore[invalid-type-var]
                normalization_fns: NormalizationFns,
                random_key: network_lib.PRNGKey,
                variable_client: Optional[variable_utils.VariableClient],
@@ -79,7 +79,7 @@ class NormalizedGenericActor(actors.GenericActor[actor_core.State,
       per_episode_update: if True, updates variable client params once at the
         beginning of each episode
     """
-    super().__init__(actor, random_key, variable_client, adder, jit, backend,
+    super().__init__(actor, random_key, variable_client, adder, jit, backend,  # pyrefly: ignore[bad-argument-type]
                      per_episode_update)
     if jit:
       self._apply_normalization = jax.jit(
@@ -97,7 +97,7 @@ class NormalizedGenericActor(actors.GenericActor[actor_core.State,
 
 class EMAMeanStdNormalizerParams(NamedTuple):
   """Using technique form Adam optimizer paper for computing running stats."""
-  ema_counter: jnp.int32
+  ema_counter: jnp.int32  # pyrefly: ignore[not-a-type]
   biased_first_moment: types.NestedArray
   biased_second_moment: types.NestedArray
 
@@ -132,9 +132,12 @@ def build_ema_mean_std_normalizer(
         biased_second_moment=second_moment,
     )
 
-  def _normalize_leaf(x: jnp.array, ema_counter: jnp.int32,
-                      biased_first_moment: jnp.array,
-                      biased_second_moment: jnp.array) -> jnp.ndarray:
+  def _normalize_leaf(
+      x: jnp.ndarray,
+      ema_counter: jnp.int32,  # pyrefly: ignore[not-a-type]
+      biased_first_moment: jnp.ndarray,
+      biased_second_moment: jnp.ndarray,
+  ) -> jnp.ndarray:
     zero_debias = 1. / (1. - jnp.power(tau, ema_counter))
     mean = biased_first_moment * zero_debias
     second_moment = biased_second_moment * zero_debias

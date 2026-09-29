@@ -26,6 +26,7 @@ from acme.utils import counting
 from acme.utils import loggers
 import jax
 import jax.numpy as jnp
+import numpy as np
 import optax
 import reverb
 import rlax
@@ -57,7 +58,7 @@ class TrainingState(NamedTuple):
   # Optional counter used for exponential moving average zero debiasing
   # Using float32 as it covers a larger range than int32. If using int64 we
   # would need to do jax_enable_x64.
-  ema_counter: Optional[jnp.float32] = None
+  ema_counter: Optional[jnp.float32] = None  # pyrefly: ignore[not-a-type]
 
   # Optional parameter for maintaining a running estimate of the scale of
   # advantage estimates
@@ -140,6 +141,10 @@ class PPOLearner(acme.Learner):
         # values = values * jnp.fmax(value_std, 1e-6) + value_mean
         target_values = (target_values - value_mean) / jnp.fmax(value_std, 1e-6)
       policy_log_probs = ppo_networks.log_prob(distribution_params, actions)
+      if ppo_networks.extra_loss is not None:
+        extra_loss = ppo_networks.extra_loss(distribution_params)
+      else:
+        extra_loss = 0.0
       key, sub_key = jax.random.split(key)
       policy_entropies = ppo_networks.entropy(distribution_params, sub_key)
 
@@ -168,11 +173,12 @@ class PPOLearner(acme.Learner):
         # https://arxiv.org/pdf/2006.05990.pdf
         value_loss = jnp.mean(unclipped_value_loss)
 
-      total_ppo_loss = total_policy_loss + value_cost * value_loss
-      return total_ppo_loss, {
-          'loss_total': total_ppo_loss,
-          'loss_policy_total': total_policy_loss,
-          'loss_policy_pg': clipped_ppo_policy_loss,
+      total_ppo_loss = total_policy_loss + value_cost * value_loss + extra_loss
+      return total_ppo_loss, {  # pytype: disable=bad-return-type  # numpy-scalars
+          'loss_total': total_ppo_loss,  # pyrefly: ignore[bad-assignment]
+          'loss_policy_total': total_policy_loss,  # pyrefly: ignore[bad-assignment]
+          'loss_extra': extra_loss,  # pyrefly: ignore[bad-assignment]
+          'loss_policy_pg': clipped_ppo_policy_loss,  # pyrefly: ignore[bad-assignment]
           'loss_policy_entropy': policy_entropy_loss,
           'loss_critic': value_loss,
       }
@@ -261,7 +267,7 @@ class PPOLearner(acme.Learner):
 
       # Update the EMA counter and obtain the zero debiasing multiplier
       if normalize_advantage or normalize_value:
-        ema_counter = state.ema_counter + 1
+        ema_counter = state.ema_counter + 1  # pyrefly: ignore[unsupported-operation]
         state = state._replace(ema_counter=ema_counter)
         zero_debias = 1. / (1. - jnp.power(normalization_ema_tau, ema_counter))
 
@@ -296,13 +302,13 @@ class PPOLearner(acme.Learner):
             axis_name=pmap_axis_name)
 
         biased_value_first_moment = (
-            normalization_ema_tau * state.biased_value_first_moment +
+            normalization_ema_tau * state.biased_value_first_moment +  # pyrefly: ignore[unsupported-operation]
             (1. - normalization_ema_tau) * batch_value_first_moment)
         biased_value_second_moment = (
-            normalization_ema_tau * state.biased_value_second_moment +
+            normalization_ema_tau * state.biased_value_second_moment +  # pyrefly: ignore[unsupported-operation]
             (1. - normalization_ema_tau) * batch_value_second_moment)
 
-        value_mean = biased_value_first_moment * zero_debias
+        value_mean = biased_value_first_moment * zero_debias  # pyrefly: ignore[unbound-name]
         value_second_moment = biased_value_second_moment * zero_debias
         value_std = jnp.sqrt(jax.nn.relu(value_second_moment - value_mean**2))
 
@@ -313,7 +319,7 @@ class PPOLearner(acme.Learner):
             value_std=value_std,
         )
 
-        behavior_values = behavior_values * jnp.fmax(state.value_std,
+        behavior_values = behavior_values * jnp.fmax(state.value_std,  # pyrefly: ignore[bad-argument-type]
                                                      1e-6) + state.value_mean
 
       behavior_values = jax.lax.stop_gradient(behavior_values)
@@ -342,10 +348,11 @@ class PPOLearner(acme.Learner):
       batch = Batch(
           observations=observations,
           actions=actions,
-          advantages=advantages,
+          advantages=advantages,  # pyrefly: ignore[bad-argument-type]
           target_values=target_values,
           behavior_values=behavior_values,
-          behavior_log_probs=behavior_log_probs)
+          behavior_log_probs=behavior_log_probs,
+      )
       batch = jax.tree_util.tree_map(
           lambda x: jnp.reshape(x, [batch_size] + list(x.shape[2:])), batch)
 
@@ -356,7 +363,7 @@ class PPOLearner(acme.Learner):
 
         # update the running statistics
         biased_advantage_scale = (
-            normalization_ema_tau * state.biased_advantage_scale +
+            normalization_ema_tau * state.biased_advantage_scale +  # pyrefly: ignore[unsupported-operation]
             (1. - normalization_ema_tau) * batch_advantage_scale)
         advantage_scale = biased_advantage_scale * zero_debias
         state = state._replace(
@@ -364,7 +371,7 @@ class PPOLearner(acme.Learner):
             advantage_scale=advantage_scale)
 
         # scale the advantages
-        scaled_advantages = batch.advantages / jnp.fmax(state.advantage_scale,
+        scaled_advantages = batch.advantages / jnp.fmax(state.advantage_scale,  # pyrefly: ignore[bad-argument-type]
                                                         1e-6)
         batch = batch._replace(advantages=scaled_advantages)
 
@@ -377,8 +384,8 @@ class PPOLearner(acme.Learner):
         metrics['advantage_scale'] = state.advantage_scale
 
       if normalize_value:
-        metrics['value_mean'] = value_mean
-        metrics['value_std'] = value_std
+        metrics['value_mean'] = value_mean  # pyrefly: ignore[unbound-name]
+        metrics['value_std'] = value_std  # pyrefly: ignore[unbound-name]
 
       delta_params_sgd_steps = (
           data.extras['params_num_sgd_steps'][:, 0] -
@@ -409,7 +416,11 @@ class PPOLearner(acme.Learner):
       all_keys = jax.random.split(key, num=self.num_local_learner_devices + 1)
       key_init, key_state = all_keys[0], all_keys[1:]
       key_state = [key_state[i] for i in range(self.num_local_learner_devices)]
-      key_state = jax.device_put_sharded(key_state, self.local_learner_devices)
+      mesh = jax.sharding.Mesh(
+          np.array(self.local_learner_devices), ('_device_put_sharded',)
+      )
+      sharding = jax.NamedSharding(mesh, jax.P('_device_put_sharded'))
+      key_state = jax.device_put(jnp.stack(key_state), sharding)
 
       initial_params = ppo_networks.network.init(key_init)
       initial_opt_state = optimizer.init(initial_params)
@@ -417,16 +428,30 @@ class PPOLearner(acme.Learner):
       # would need to do jax_enable_x64.
       params_num_sgd_steps = jnp.zeros(shape=(), dtype=jnp.float32)
 
-      initial_params = jax.device_put_replicated(initial_params,
-                                                 self.local_learner_devices)
-      initial_opt_state = jax.device_put_replicated(initial_opt_state,
-                                                    self.local_learner_devices)
-      params_num_sgd_steps = jax.device_put_replicated(
-          params_num_sgd_steps, self.local_learner_devices)
+      mesh = jax.sharding.Mesh(
+          np.array(self.local_learner_devices), ('_device_put_sharded',)
+      )
+      replicate_sharding = jax.NamedSharding(mesh, jax.P('_device_put_sharded'))
+      stacked_params = jax.tree_util.tree_map(
+          lambda *xs: jnp.stack(xs),
+          *[initial_params] * len(self.local_learner_devices)
+      )
+      initial_params = jax.device_put(stacked_params, replicate_sharding)
+      stacked_opt_state = jax.tree_util.tree_map(
+          lambda *xs: jnp.stack(xs),
+          *[initial_opt_state] * len(self.local_learner_devices)
+      )
+      initial_opt_state = jax.device_put(stacked_opt_state, replicate_sharding)
+      params_num_sgd_steps = jax.device_put(
+          jnp.stack([params_num_sgd_steps] * len(self.local_learner_devices)),
+          replicate_sharding,
+      )
 
       ema_counter = jnp.float32(0)
-      ema_counter = jax.device_put_replicated(ema_counter,
-                                              self.local_learner_devices)
+      ema_counter = jax.device_put(
+          jnp.stack([ema_counter] * len(self.local_learner_devices)),
+          replicate_sharding,
+      )
 
       init_state = TrainingState(
           params=PPOParams(
@@ -437,22 +462,30 @@ class PPOLearner(acme.Learner):
       )
 
       if normalize_advantage:
-        biased_advantage_scale = jax.device_put_replicated(
-            jnp.zeros([]), self.local_learner_devices)
-        advantage_scale = jax.device_put_replicated(
-            jnp.zeros([]), self.local_learner_devices)
+        biased_advantage_scale = jax.device_put(
+            jnp.stack([jnp.zeros([])] * len(self.local_learner_devices)),
+            replicate_sharding,
+        )
+        advantage_scale = jax.device_put(
+            jnp.stack([jnp.zeros([])] * len(self.local_learner_devices)),
+            replicate_sharding,
+        )
 
         init_state = init_state._replace(
             biased_advantage_scale=biased_advantage_scale,
             advantage_scale=advantage_scale)
 
       if normalize_value:
-        biased_value_first_moment = jax.device_put_replicated(
-            jnp.zeros([]), self.local_learner_devices)
+        biased_value_first_moment = jax.device_put(
+            jnp.stack([jnp.zeros([])] * len(self.local_learner_devices)),
+            replicate_sharding,
+        )
         value_mean = biased_value_first_moment
 
-        biased_value_second_moment = jax.device_put_replicated(
-            jnp.zeros([]), self.local_learner_devices)
+        biased_value_second_moment = jax.device_put(
+            jnp.stack([jnp.zeros([])] * len(self.local_learner_devices)),
+            replicate_sharding,
+        )
         value_second_moment = biased_value_second_moment
         value_std = jnp.sqrt(jax.nn.relu(value_second_moment - value_mean**2))
 
@@ -464,8 +497,13 @@ class PPOLearner(acme.Learner):
 
       if normalize_obs:
         obs_norm_params = obs_normalization_fns.init()  # pytype: disable=attribute-error
-        obs_norm_params = jax.device_put_replicated(obs_norm_params,
-                                                    self.local_learner_devices)
+        stacked_obs_norm_params = jax.tree_util.tree_map(
+            lambda *xs: jnp.stack(xs),
+            *[obs_norm_params] * len(self.local_learner_devices)
+        )
+        obs_norm_params = jax.device_put(
+            stacked_obs_norm_params, replicate_sharding
+        )
         init_state = init_state._replace(
             obs_normalization_params=obs_norm_params)
 
@@ -496,7 +534,7 @@ class PPOLearner(acme.Learner):
 
     self._num_full_update_steps += 1
 
-  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:
+  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:  # pyrefly: ignore[bad-override]
     variables = self._cached_state
     return [getattr(variables, name) for name in names]
 
@@ -508,11 +546,22 @@ class PPOLearner(acme.Learner):
     random_key = state.random_key
     random_key = jax.random.split(
         random_key, num=self.num_local_learner_devices)
-    random_key = jax.device_put_sharded(
-        [random_key[i] for i in range(self.num_local_learner_devices)],
-        self.local_learner_devices)
-
-    state = jax.device_put_replicated(state, self.local_learner_devices)
+    mesh = jax.sharding.Mesh(
+        np.array(self.local_learner_devices), ('_device_put_sharded',)
+    )
+    sharding = jax.NamedSharding(mesh, jax.P('_device_put_sharded'))
+    random_key = jax.device_put(
+        jnp.stack(
+            [random_key[i] for i in range(self.num_local_learner_devices)]
+        ),
+        sharding,
+    )
+    state = jax.tree_util.tree_map(
+        lambda x: jax.device_put(
+            jnp.stack([x] * len(self.local_learner_devices)), sharding
+        ),
+        state,
+    )
     state = state._replace(random_key=random_key)
     self._state = state
     self._cached_state = get_from_first_device(self._state, as_numpy=True)

@@ -166,7 +166,7 @@ class CRRLearner(acme.Learner):
       steps = state.steps + 1
 
       # Periodically update target networks.
-      target_policy_params, target_critic_params = optax.periodic_update(
+      target_policy_params, target_critic_params = optax.periodic_update(  # pytype: disable=wrong-arg-types  # numpy-scalars
           (policy_params, critic_params),
           (state.target_policy_params, state.target_critic_params), steps,
           target_update_period)
@@ -197,7 +197,7 @@ class CRRLearner(acme.Learner):
     self._logger = logger or loggers.make_default_logger(
         'learner',
         asynchronous=True,
-        serialize_fn=utils.fetch_devicearray,
+        serialize_fn=utils.fetch_devicearray,  # pyrefly: ignore[bad-argument-type]
         steps_key=self._counter.get_steps_key())
 
     # Create prefetching dataset iterator.
@@ -247,7 +247,7 @@ class CRRLearner(acme.Learner):
     # Attempts to write the logs.
     self._logger.write({**metrics, **counts})
 
-  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:
+  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:  # pyrefly: ignore[bad-override]
     # We only expose the variables for the learned policy and critic. The target
     # policy and critic are internal details.
     variables = {

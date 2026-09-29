@@ -25,9 +25,8 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
-import tensorflow_probability
+import tensorflow_probability.substrates.jax as tfp
 
-tfp = tensorflow_probability.substrates.jax
 tfd = tfp.distributions
 
 EntropyFn = Callable[
@@ -56,7 +55,7 @@ class PPOParams(NamedTuple):
   model_params: networks_lib.Params
   # Using float32 as it covers a larger range than int32. If using int64 we
   # would need to do jax_enable_x64.
-  num_sgd_steps: jnp.float32
+  num_sgd_steps: jnp.float32  # pyrefly: ignore[not-a-type]
 
 
 @dataclasses.dataclass
@@ -78,6 +77,9 @@ class PPONetworks:
   entropy: EntropyFn
   sample: networks_lib.SampleFn
   sample_eval: Optional[networks_lib.SampleFn] = None
+  extra_loss: Optional[
+      Callable[[networks_lib.NetworkOutput], networks_lib.Value]
+  ] = None
 
 
 def make_inference_fn(

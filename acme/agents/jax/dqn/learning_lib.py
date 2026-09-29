@@ -118,7 +118,7 @@ class SGDLearner(acme.Learner):
 
       # Periodically update target networks.
       steps = state.steps + 1
-      target_params = optax.periodic_update(new_params, state.target_params,
+      target_params = optax.periodic_update(new_params, state.target_params,  # pytype: disable=wrong-arg-types  # numpy-scalars
                                             steps, target_update_period)
 
       new_training_state = TrainingState(
@@ -168,7 +168,7 @@ class SGDLearner(acme.Learner):
         return
       keys, priorities = tree.map_structure(
           # Fetch array and combine device and batch dimensions.
-          lambda x: utils.fetch_devicearray(x).reshape((-1,) + x.shape[2:]),
+          lambda x: utils.fetch_devicearray(x).reshape((-1,) + x.shape[2:]),  # pyrefly: ignore[missing-attribute]
           (reverb_update.keys, reverb_update.priorities))
       replay_client.mutate_priorities(
           table=replay_table_name,
@@ -209,7 +209,7 @@ class SGDLearner(acme.Learner):
       result.update(metrics)
       self._logger.write(result)
 
-  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:
+  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:  # pyrefly: ignore[bad-override]
     # Return first replica of parameters.
     return utils.get_from_first_device([self._state.params])
 

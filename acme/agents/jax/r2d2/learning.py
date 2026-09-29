@@ -78,8 +78,8 @@ class R2D2Learner(acme.Learner):
         params: networks_lib.Params,
         target_params: networks_lib.Params,
         key_grad: networks_lib.PRNGKey,
-        sample: reverb.ReplaySample
-    ) -> Tuple[jnp.ndarray, Tuple[jnp.ndarray, jnp.ndarray]]:
+        sample: reverb.ReplaySample,
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
       """Computes mean transformed N-step loss for a batch of sequences."""
 
       # Get core state & warm it up on observations for a burn-in period.
@@ -89,7 +89,7 @@ class R2D2Learner(acme.Learner):
         # specifies a dynamically unrolled RNN as it will strictly enforce the
         # match between input/output state types.
         online_state = utils.maybe_recover_lstm_type(
-            sample.data.extras.get('core_state'))
+            sample.data.extras.get('core_state'))  # pyrefly: ignore[missing-attribute]
       else:
         key_grad, initial_state_rng = jax.random.split(key_grad)
         online_state = networks.init_recurrent_state(initial_state_rng,
@@ -101,14 +101,14 @@ class R2D2Learner(acme.Learner):
 
       # Maybe burn the core state in.
       if burn_in_length:
-        burn_obs = jax.tree_map(lambda x: x[:burn_in_length], data.observation)
+        burn_obs = jax.tree.map(lambda x: x[:burn_in_length], data.observation)
         key_grad, key1, key2 = jax.random.split(key_grad, 3)
         _, online_state = networks.unroll(params, key1, burn_obs, online_state)
         _, target_state = networks.unroll(target_params, key2, burn_obs,
                                           target_state)
 
       # Only get data to learn on from after the end of the burn in period.
-      data = jax.tree_map(lambda seq: seq[burn_in_length:], data)
+      data = jax.tree.map(lambda seq: seq[burn_in_length:], data)
 
       # Unroll on sequences to get online and target Q-Values.
       key1, key2 = jax.random.split(key_grad)
@@ -145,7 +145,7 @@ class R2D2Learner(acme.Learner):
 
       # Importance weighting.
       probs = sample.info.probability
-      importance_weights = (1. / (probs + 1e-6)).astype(online_q.dtype)
+      importance_weights = (1. / (probs + 1e-6)).astype(online_q.dtype)  # pyrefly: ignore[missing-attribute]
       importance_weights **= importance_sampling_exponent
       importance_weights /= jnp.max(importance_weights)
       mean_loss = jnp.mean(importance_weights * batch_loss)
@@ -181,7 +181,7 @@ class R2D2Learner(acme.Learner):
 
       # Periodically update target networks.
       steps = state.steps + 1
-      target_params = optax.periodic_update(new_params, state.target_params,
+      target_params = optax.periodic_update(new_params, state.target_params,  # pytype: disable=wrong-arg-types  # numpy-scalars
                                             steps, self._target_update_period)
 
       new_state = TrainingState(
@@ -197,7 +197,7 @@ class R2D2Learner(acme.Learner):
       keys, priorities = keys_and_priorities
       keys, priorities = tree.map_structure(
           # Fetch array and combine device and batch dimensions.
-          lambda x: utils.fetch_devicearray(x).reshape((-1,) + x.shape[2:]),
+          lambda x: utils.fetch_devicearray(x).reshape((-1,) + x.shape[2:]),  # pyrefly: ignore[missing-attribute]
           (keys, priorities))
       replay_client.mutate_priorities(  # pytype: disable=attribute-error
           table=adders.DEFAULT_PRIORITY_TABLE,
@@ -211,7 +211,7 @@ class R2D2Learner(acme.Learner):
     self._logger = logger or loggers.make_default_logger(
         'learner',
         asynchronous=True,
-        serialize_fn=utils.fetch_devicearray,
+        serialize_fn=utils.fetch_devicearray,  # pyrefly: ignore[bad-argument-type]
         time_delta=1.,
         steps_key=self._counter.get_steps_key())
 
@@ -228,12 +228,13 @@ class R2D2Learner(acme.Learner):
     logging.info('Total number of params: %d',
                  sum(tree.flatten(sizes.values())))
 
-    state = TrainingState(
+    state = TrainingState(  # pytype: disable=wrong-arg-types  # jnp-type
         params=initial_params,
         target_params=initial_params,
         opt_state=opt_state,
-        steps=jnp.array(0),
-        random_key=random_key)
+        steps=jnp.array(0),  # pyrefly: ignore[bad-argument-type]
+        random_key=random_key,
+    )
     # Replicate parameters.
     self._state = utils.replicate_in_all_devices(state)
 
@@ -263,7 +264,7 @@ class R2D2Learner(acme.Learner):
     # Attempt to write logs.
     self._logger.write({**metrics, **counts})
 
-  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:
+  def get_variables(self, names: List[str]) -> List[networks_lib.Params]:  # pyrefly: ignore[bad-override]
     del names  # There's only one available set of params in this agent.
     # Return first replica of parameters.
     return utils.get_from_first_device([self._state.params])

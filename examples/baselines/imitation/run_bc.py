@@ -155,9 +155,9 @@ def build_experiment_config() -> experiments.OfflineExperimentConfig[
   shift, scale = helpers.get_observation_stats(dataset)
 
   # Define the network factory.
-  network_factory = _make_network_factory(
-      shift=shift,
-      scale=scale,
+  network_factory = _make_network_factory(  # pytype: disable=wrong-arg-types  # numpy-scalars
+      shift=shift,  # pyrefly: ignore[bad-argument-type]
+      scale=scale,  # pyrefly: ignore[bad-argument-type]
       num_layers=FLAGS.num_layers,
       num_units=FLAGS.num_units,
       dropout_rate=FLAGS.dropout_rate)

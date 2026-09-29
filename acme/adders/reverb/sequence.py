@@ -123,7 +123,7 @@ class SequenceAdder(base.ReverbAdder):
         max_sequence_length=sequence_length+1,
         delta_encoded=delta_encoded,
         priority_fns=priority_fns,
-        max_in_flight_items=max_in_flight_items,
+        max_in_flight_items=max_in_flight_items,  # pyrefly: ignore[bad-argument-type]
         validate_items=validate_items)
 
     if pad_end_of_episode and not break_end_of_episode:
@@ -166,7 +166,7 @@ class SequenceAdder(base.ReverbAdder):
       raise ValueError('end_of_episod_behavior must be an instance of '
                        f'EndBehavior, received {end_of_episode_behavior}.')
 
-  def reset(self):
+  def reset(self):  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
     """Resets the adder's buffer."""
     # If we do not write on end of episode, we should not reset the writer.
     if self._end_of_episode_behavior is EndBehavior.CONTINUE:
@@ -198,14 +198,14 @@ class SequenceAdder(base.ReverbAdder):
 
     elif self._end_of_episode_behavior is EndBehavior.TRUNCATE:
       self._maybe_create_item(
-          self._sequence_length - delta,
+          self._sequence_length - delta,  # pyrefly: ignore[unbound-name]
           end_of_episode=True,
           force=True)
 
     elif self._end_of_episode_behavior is EndBehavior.ZERO_PAD:
       zero_step = tree.map_structure(lambda x: np.zeros_like(x[-2].numpy()),
                                      self._writer.history)
-      for _ in range(delta):
+      for _ in range(delta):  # pyrefly: ignore[unbound-name]
         self._writer.append(zero_step)
 
       self._maybe_create_item(

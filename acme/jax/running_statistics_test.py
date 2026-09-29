@@ -21,7 +21,7 @@ from typing import NamedTuple
 from acme import specs
 from acme.jax import running_statistics
 import jax
-from jax.config import config as jax_config
+from jax import config as jax_config
 import jax.numpy as jnp
 import numpy as np
 import tree
@@ -216,8 +216,8 @@ class RunningStatisticsTest(absltest.TestCase):
     self.assertEqual(state.mean, (jnp.mean(x) + 2 * jnp.mean(y)) / 3)
     big_z = jnp.concatenate([x, y, y])
     normalized = running_statistics.normalize(big_z, state)
-    self.assertAlmostEqual(jnp.mean(normalized), 0., places=6)
-    self.assertAlmostEqual(jnp.std(normalized), 1., places=6)
+    self.assertAlmostEqual(jnp.mean(normalized), 0., places=6)  # pyrefly: ignore[no-matching-overload]
+    self.assertAlmostEqual(jnp.std(normalized), 1., places=6)  # pyrefly: ignore[no-matching-overload]
 
   def test_normalize_config(self):
     x = jnp.arange(200, dtype=jnp.float32).reshape(20, 2, 5)
@@ -277,7 +277,7 @@ class RunningStatisticsTest(absltest.TestCase):
 
     clipped_z = running_statistics.clip(z, config)
 
-    clipped_x = jnp.clip(a=x, a_min=-max_abs_x, a_max=max_abs_x)
+    clipped_x = jnp.clip(x, min=-max_abs_x, max=max_abs_x)
     np.testing.assert_array_equal(clipped_z['x'], clipped_x)
 
     np.testing.assert_array_equal(clipped_z['y'], z['y'])

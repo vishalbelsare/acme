@@ -50,8 +50,9 @@ def get_policy(policy_network: networks_lib.FeedForwardNetwork,
     normalized_obs = normalization_apply_fn(obs, normalization_params)
     action = policy_network.apply(policy_params, normalized_obs)
     return action, {
-        'params_key':
-            jax.tree_map(lambda x: jnp.expand_dims(x, axis=0), params_key)
+        'params_key': jax.tree.map(
+            lambda x: jnp.expand_dims(x, axis=0), params_key
+        )
     }
 
   return apply
@@ -96,19 +97,19 @@ class ARSBuilder(
     del environment_spec
     assert variable_source is not None
 
-    kname, policy = policy
+    kname, policy = policy  # pyrefly: ignore[bad-assignment]
 
     normalization_apply_fn = (
         running_statistics.normalize if self._config.normalize_observations else
         (lambda a, b: a))
-    policy_to_run = get_policy(policy, normalization_apply_fn)
+    policy_to_run = get_policy(policy, normalization_apply_fn)  # pyrefly: ignore[bad-argument-type]
 
     actor_core = actor_core_lib.batched_feed_forward_with_extras_to_actor_core(
         policy_to_run)
     variable_client = variable_utils.VariableClient(variable_source, kname,
                                                     device='cpu')
     return actors.GenericActor(
-        actor_core,
+        actor_core,  # pyrefly: ignore[bad-argument-type]
         random_key,
         variable_client,
         adder,

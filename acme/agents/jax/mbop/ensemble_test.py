@@ -52,10 +52,10 @@ def struct_params_adding_ffn(sx: Any) -> networks.FeedForwardNetwork:
   """Like params_adding_ffn, but with pytree inputs, preserves structure."""
 
   def init_fn(key, sx=sx):
-    return jax.tree_map(lambda x: jax.random.uniform(key, x.shape), sx)
+    return jax.tree.map(lambda x: jax.random.uniform(key, x.shape), sx)
 
   def apply_fn(params, x):
-    return jax.tree_map(lambda p, v: p + v, params, x)
+    return jax.tree.map(lambda p, v: p + v, params, x)
 
   return networks.FeedForwardNetwork(init=init_fn, apply=apply_fn)
 
@@ -289,11 +289,12 @@ class EnsembleTest(absltest.TestCase):
     self.assertTrue((out[0] != out[1]).any())
 
     for i in range(9):
-      np.testing.assert_allclose(
+      np.testing.assert_allclose(  # pyrefly: ignore[no-matching-overload]
           out[i],
-          ffn.apply(jax.tree_map(lambda p, i=i: p[i % 3], params), bx[i]),
-          atol=1E-5,
-          rtol=1E-5)
+          ffn.apply(jax.tree.map(lambda p, i=i: p[i % 3], params), bx[i]),
+          atol=1e-5,
+          rtol=1e-5,
+      )
 
   def test_mean_random(self):
     x = jnp.ones(10)
@@ -318,7 +319,8 @@ class EnsembleTest(absltest.TestCase):
     # Check results explicitly:
     all_members = jnp.concatenate([
         jnp.expand_dims(
-            ffn.apply(jax.tree_map(lambda p, i=i: p[i], params), bx), axis=0)
+            ffn.apply(jax.tree.map(lambda p, i=i: p[i], params), bx), axis=0  # pyrefly: ignore[bad-argument-type]
+        )
         for i in range(3)
     ])
     batch_means = jnp.mean(all_members, axis=0)

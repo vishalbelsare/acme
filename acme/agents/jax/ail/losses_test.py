@@ -36,15 +36,25 @@ class AilLossTest(absltest.TestCase):
     zero_transition = tree.map_structure(lambda x: jnp.expand_dims(x, axis=0),
                                          zero_transition)
     self.assertEqual(
-        losses._compute_gradient_penalty(zero_transition, dummy_discriminator,
-                                         0.), 1**2 + 0**2)
+        losses._compute_gradient_penalty(
+            zero_transition,
+            dummy_discriminator,  # pyrefly: ignore[bad-argument-type]
+            0.,
+        ),
+        1**2 + 0**2,
+    )
 
     one_transition = types.Transition(1., 1., 0., 0., 0.)
     one_transition = tree.map_structure(lambda x: jnp.expand_dims(x, axis=0),
                                         one_transition)
     self.assertEqual(
-        losses._compute_gradient_penalty(one_transition, dummy_discriminator,
-                                         0.), 1**2 + 2**2)
+        losses._compute_gradient_penalty(
+            one_transition,
+            dummy_discriminator,  # pyrefly: ignore[bad-argument-type]
+            0.,
+        ),
+        1**2 + 2**2,
+    )
 
   def test_pugail(self):
 
@@ -64,15 +74,20 @@ class AilLossTest(absltest.TestCase):
     prior = .7
     loss_fn = losses.pugail_loss(
         positive_class_prior=prior, entropy_coefficient=0.)
-    loss, _ = loss_fn(dummy_discriminator, {}, one_transition,
-                      zero_transition, ())
+    loss, _ = loss_fn(  # pytype: disable=wrong-arg-types
+        dummy_discriminator,
+        {},
+        one_transition,
+        zero_transition,
+        (),  # pyrefly: ignore[bad-argument-type]
+    )
 
     d_one = jax.nn.sigmoid(dummy_discriminator({}, one_transition)[0])
     d_zero = jax.nn.sigmoid(dummy_discriminator({}, zero_transition)[0])
     expected_loss = -prior * jnp.log(
         d_one) + -jnp.log(1. - d_zero) - prior * -jnp.log(1 - d_one)
 
-    self.assertAlmostEqual(loss, expected_loss, places=6)
+    self.assertAlmostEqual(loss, expected_loss, places=6)  # pyrefly: ignore[no-matching-overload]
 
 
 if __name__ == '__main__':
